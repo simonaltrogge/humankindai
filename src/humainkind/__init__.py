@@ -47,3 +47,16 @@ def get_efficacy_of_ai(
 ) -> Float[jax.Array, "*dim"]:
     resource_of_ai = get_resource_of_ai(state)
     return initial_efficacy * resource_of_ai**exponent
+
+
+def get_production_cost(
+    state: Float[ArrayLike, "*dim 2"],
+    *,
+    initial_cost=1.0,
+    initial_resource=1.0,
+    learning_rate=0.25,
+) -> Float[jax.Array, "*dim"]:
+    """Learning curve."""
+    resource = get_resource(state)
+    progress_ratio = 1 - learning_rate
+    return initial_cost * (resource / initial_resource) ** jnp.log2(progress_ratio)
