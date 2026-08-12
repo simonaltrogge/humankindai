@@ -37,15 +37,19 @@ def get_resource_of_ai(state: Float[ArrayLike, " 2"]) -> Float[jax.Array, ""]:
 
 
 def get_efficacy_of_humankind(
-    state: Float[ArrayLike, " 2"], *, slope: float = 10.0, intercept: float = 2.3
+    state: Float[ArrayLike, " 2"],
+    *,
+    conversion_factor: float = 0.0002329,
+    slope: float = 10.01,
+    intercept: float = 2.31,
 ) -> Float[jax.Array, ""]:
     state = jnp.asarray(state)
     resource_of_humankind = get_resource_of_humankind(state)
-    return slope * resource_of_humankind + intercept
+    return conversion_factor * (slope * resource_of_humankind + intercept)
 
 
 def get_efficacy_of_ai(
-    state: Float[ArrayLike, " 2"], *, initial_efficacy=1.0, exponent=1.1
+    state: Float[ArrayLike, " 2"], *, initial_efficacy=0.124575, exponent=1.1
 ) -> Float[jax.Array, ""]:
     state = jnp.asarray(state)
     resource_of_ai = get_resource_of_ai(state)
@@ -56,7 +60,7 @@ def get_production_cost(
     state: Float[ArrayLike, " 2"],
     *,
     initial_cost=1.0,
-    initial_resource=1.0,
+    initial_resource=9.19963,
     learning_rate=0.25,
 ) -> Float[jax.Array, ""]:
     """Learning curve."""
