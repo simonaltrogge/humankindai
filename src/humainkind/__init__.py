@@ -72,16 +72,16 @@ def get_greedy_dynamics_of_humankind(
     cost_vector = jnp.array([production_cost, redistribution_cost])
 
     grad_resource_of_humankind = jax.grad(get_resource_of_humankind)(state)
-    cost_weighted_grad_resource_of_humankind = grad_resource_of_humankind / cost_vector
-    normalized_cost_weighted_grad_resource_of_humankind = (
-        cost_weighted_grad_resource_of_humankind
-        / jnp.linalg.vector_norm(cost_weighted_grad_resource_of_humankind)
+    cost_adjusted_grad_resource_of_humankind = grad_resource_of_humankind / cost_vector
+    normalized_cost_adjusted_grad_resource_of_humankind = (
+        cost_adjusted_grad_resource_of_humankind
+        / jnp.linalg.vector_norm(cost_adjusted_grad_resource_of_humankind)
     )
 
     efficacy_of_humankind = get_efficacy_of_humankind(state)
 
     return efficacy_of_humankind * (
-        normalized_cost_weighted_grad_resource_of_humankind / cost_vector
+        normalized_cost_adjusted_grad_resource_of_humankind / cost_vector
     )
 
 
@@ -92,15 +92,15 @@ def get_greedy_dynamics_of_ai(
     cost_vector = jnp.array([production_cost, redistribution_cost])
 
     grad_resource_of_ai = jax.grad(get_resource_of_ai)(state)
-    cost_weighted_grad_resource_of_ai = grad_resource_of_ai / cost_vector
-    normalized_cost_weighted_grad_resource_of_ai = (
-        cost_weighted_grad_resource_of_ai
-        / jnp.linalg.vector_norm(cost_weighted_grad_resource_of_ai)
+    cost_adjusted_grad_resource_of_ai = grad_resource_of_ai / cost_vector
+    normalized_cost_adjusted_grad_resource_of_ai = (
+        cost_adjusted_grad_resource_of_ai
+        / jnp.linalg.vector_norm(cost_adjusted_grad_resource_of_ai)
     )
 
     efficacy_of_ai = get_efficacy_of_ai(state)
 
-    return efficacy_of_ai * (normalized_cost_weighted_grad_resource_of_ai / cost_vector)
+    return efficacy_of_ai * (normalized_cost_adjusted_grad_resource_of_ai / cost_vector)
 
 
 def get_greedy_dynamics(state: Float[jax.Array, " 2"]) -> Float[jax.Array, " 2"]:
