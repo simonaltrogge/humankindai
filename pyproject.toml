@@ -10,10 +10,12 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "diffrax>=0.7.2",
     "jax>=0.11.0",
     "jaxtyping>=0.3.11",
     "marimo>=0.23.16",
     "matplotlib>=3.11.1",
+    "optimistix>=0.1.0",
 ]
 
 [build-system]
