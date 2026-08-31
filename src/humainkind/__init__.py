@@ -11,6 +11,7 @@ INITIAL_RESOURCE = 8.10
 INITIAL_SHARE_OF_HUMANKIND = 0.9970
 REDISTRIBUTION_COST_OF_HUMANKIND = 70.0
 REDISTRIBUTION_COST_OF_AI = 500.0
+PLANNING_HORIZON = 36  # months, that is, three years
 
 type ScalarFloat = float | Float[jax.Array, ""]
 
@@ -152,16 +153,6 @@ def get_greedy_dynamics(
     return greedy_dynamics_of_humankind + greedy_dynamics_of_ai
 
 
-def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
-    return vector / jnp.linalg.vector_norm(vector)
-
-
-def cost_adjusted(
-    vector: Float[jax.Array, " dims"], costs: Float[jax.Array, " dims"]
-) -> Float[jax.Array, " dims"]:
-    return vector / costs
-
-
 def solve_greedy_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
@@ -198,3 +189,210 @@ def solve_greedy_dynamics(
     )
 
     return solution
+
+
+def predict_gradients_of_resources_of_humankind_and_ai(
+    state: Float[jax.Array, " 2"],
+    *,
+    planning_horizon: ScalarFloat = PLANNING_HORIZON,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    resource_perturbation: ScalarFloat = 1e-3,
+    share_of_humankind_perturbation: ScalarFloat = 1e-4,
+) -> tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]:
+    upwards_perturbed_resource_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=get_resource(state) + resource_perturbation,
+            share_of_humankind=get_share_of_humankind(state),
+        ),
+        target_duration=planning_horizon,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+        saveat=diffrax.SaveAt(t1=True, dense=True),
+    )
+    downwards_perturbed_resource_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=get_resource(state) - resource_perturbation,
+            share_of_humankind=get_share_of_humankind(state),
+        ),
+        target_duration=planning_horizon,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+        saveat=diffrax.SaveAt(t1=True, dense=True),
+    )
+    upwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=get_resource(state),
+            share_of_humankind=(
+                get_share_of_humankind(state) + share_of_humankind_perturbation
+            ),
+        ),
+        target_duration=planning_horizon,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+        saveat=diffrax.SaveAt(t1=True, dense=True),
+    )
+    downwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=get_resource(state),
+            share_of_humankind=(
+                get_share_of_humankind(state) - share_of_humankind_perturbation
+            ),
+        ),
+        target_duration=planning_horizon,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+        saveat=diffrax.SaveAt(t1=True, dense=True),
+    )
+    assert upwards_perturbed_resource_solution.ts is not None
+    assert downwards_perturbed_resource_solution.ts is not None
+    assert upwards_perturbed_share_of_humankind_solution.ts is not None
+    assert downwards_perturbed_share_of_humankind_solution.ts is not None
+    prediction_time = jnp.min(
+        jnp.array(
+            [
+                upwards_perturbed_resource_solution.ts[0],
+                downwards_perturbed_resource_solution.ts[0],
+                upwards_perturbed_share_of_humankind_solution.ts[0],
+                downwards_perturbed_share_of_humankind_solution.ts[0],
+            ]
+        )
+    )
+    upwards_perturbed_resource_predicted_state = (
+        upwards_perturbed_resource_solution.evaluate(prediction_time)
+    )
+    downwards_perturbed_resource_predicted_state = (
+        downwards_perturbed_resource_solution.evaluate(prediction_time)
+    )
+    upwards_perturbed_share_of_humankind_predicted_state = (
+        upwards_perturbed_share_of_humankind_solution.evaluate(prediction_time)
+    )
+    downwards_perturbed_share_of_humankind_predicted_state = (
+        downwards_perturbed_share_of_humankind_solution.evaluate(prediction_time)
+    )
+    predicted_gradient_of_resource_of_humankind = jnp.array(
+        [
+            (
+                get_resource_of_humankind(upwards_perturbed_resource_predicted_state)
+                - get_resource_of_humankind(
+                    downwards_perturbed_resource_predicted_state
+                )
+            )
+            / (2 * resource_perturbation),
+            (
+                get_resource_of_humankind(
+                    upwards_perturbed_share_of_humankind_predicted_state
+                )
+                - get_resource_of_humankind(
+                    downwards_perturbed_share_of_humankind_predicted_state
+                )
+            )
+            / (2 * share_of_humankind_perturbation),
+        ]
+    )
+    predicted_gradient_of_resource_of_ai = jnp.array(
+        [
+            (
+                get_resource_of_ai(upwards_perturbed_resource_predicted_state)
+                - get_resource_of_ai(downwards_perturbed_resource_predicted_state)
+            )
+            / (2 * resource_perturbation),
+            (
+                get_resource_of_ai(upwards_perturbed_share_of_humankind_predicted_state)
+                - get_resource_of_ai(
+                    downwards_perturbed_share_of_humankind_predicted_state
+                )
+            )
+            / (2 * share_of_humankind_perturbation),
+        ]
+    )
+
+    return (
+        prediction_time,
+        (
+            predicted_gradient_of_resource_of_humankind,
+            predicted_gradient_of_resource_of_ai,
+        ),
+    )
+
+
+def get_farsighted_dynamics_of_humankind_and_ai(
+    state: Float[jax.Array, " 2"],
+    *,
+    planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
+    planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+) -> tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]:
+    (
+        _,
+        (grad_predicted_resource_of_humankind, grad_predicted_resource_of_ai),
+    ) = predict_gradients_of_resources_of_humankind_and_ai(
+        state,
+        planning_horizon=planning_horizon_of_humankind,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+    )
+    if planning_horizon_of_ai != planning_horizon_of_humankind:
+        (
+            _,
+            (_, grad_predicted_resource_of_ai),
+        ) = predict_gradients_of_resources_of_humankind_and_ai(
+            state,
+            planning_horizon=planning_horizon_of_ai,
+            redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+            redistribution_cost_of_ai=redistribution_cost_of_ai,
+        )
+
+    production_cost = get_production_cost(state)
+
+    costs_of_humankind = jnp.array([production_cost, redistribution_cost_of_humankind])
+    normalized_cost_adjusted_grad_resource_of_humankind = normalized(
+        cost_adjusted(grad_predicted_resource_of_humankind, costs_of_humankind)
+    )
+    efficacy_of_humankind = get_efficacy_of_humankind(state)
+    farsighted_dynamics_of_humankind = efficacy_of_humankind * (
+        normalized_cost_adjusted_grad_resource_of_humankind / costs_of_humankind
+    )
+
+    costs_of_ai = jnp.array([production_cost, redistribution_cost_of_ai])
+    normalized_cost_adjusted_grad_resource_of_ai = normalized(
+        cost_adjusted(grad_predicted_resource_of_ai, costs_of_ai)
+    )
+    efficacy_of_ai = get_efficacy_of_ai(state)
+    farsighted_dynamics_of_ai = efficacy_of_ai * (
+        normalized_cost_adjusted_grad_resource_of_ai / costs_of_ai
+    )
+
+    return (farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai)
+
+
+def get_farsighted_dynamics(
+    state: Float[jax.Array, " 2"],
+    *,
+    planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
+    planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+) -> Float[jax.Array, " 2"]:
+    farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai = (
+        get_farsighted_dynamics_of_humankind_and_ai(
+            state,
+            planning_horizon_of_humankind=planning_horizon_of_humankind,
+            planning_horizon_of_ai=planning_horizon_of_ai,
+            redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+            redistribution_cost_of_ai=redistribution_cost_of_ai,
+        )
+    )
+
+    return farsighted_dynamics_of_humankind + farsighted_dynamics_of_ai
+
+
+def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
+    return vector / jnp.linalg.vector_norm(vector)
+
+
+def cost_adjusted(
+    vector: Float[jax.Array, " dims"], costs: Float[jax.Array, " dims"]
+) -> Float[jax.Array, " dims"]:
+    return vector / costs
