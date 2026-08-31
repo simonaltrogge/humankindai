@@ -34,8 +34,22 @@ def get_resource_of_ai(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
     return share_of_ai * resource
 
 
-grad_get_resource_of_humankind = jax.grad(get_resource_of_humankind)
-grad_get_resource_of_ai = jax.grad(get_resource_of_ai)
+def grad_get_resource_of_humankind(
+    state: Float[jax.Array, " 2"],
+) -> Float[jax.Array, " 2"]:
+    resource = get_resource(state)
+    share_of_humankind = get_share_of_humankind(state)
+
+    return jnp.array([share_of_humankind, resource])
+
+
+def grad_get_resource_of_ai(
+    state: Float[jax.Array, " 2"],
+) -> Float[jax.Array, " 2"]:
+    resource = get_resource(state)
+    share_of_ai = get_share_of_ai(state)
+
+    return jnp.array([share_of_ai, -resource])
 
 
 def get_efficacy_of_humankind(
