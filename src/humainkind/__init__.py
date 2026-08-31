@@ -2,8 +2,18 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Float
 
+INITIAL_RESOURCE = 8.10
+INITIAL_SHARE_OF_HUMANKIND = 0.9970
+REDISTRIBUTION_COST_OF_HUMANKIND = 70.0
+REDISTRIBUTION_COST_OF_AI = 500.0
 
-def create_state(resource: float, share_of_humankind: float) -> Float[jax.Array, " 2"]:
+type ScalarFloat = float | Float[jax.Array, ""]
+
+
+def create_state(
+    resource: ScalarFloat = INITIAL_RESOURCE,
+    share_of_humankind: ScalarFloat = INITIAL_SHARE_OF_HUMANKIND,
+) -> Float[jax.Array, " 2"]:
     return jnp.array([resource, share_of_humankind])
 
 
@@ -55,16 +65,19 @@ def grad_get_resource_of_ai(
 def get_efficacy_of_humankind(
     state: Float[jax.Array, " 2"],
     *,
-    conversion_factor: float = 0.0002329,
-    slope: float = 10.01,
-    intercept: float = 2.31,
+    conversion_factor: ScalarFloat = 0.000240582,
+    slope: ScalarFloat = 10.01,
+    intercept: ScalarFloat = 2.31,
 ) -> Float[jax.Array, ""]:
     resource_of_humankind = get_resource_of_humankind(state)
     return conversion_factor * (slope * resource_of_humankind + intercept)
 
 
 def get_efficacy_of_ai(
-    state: Float[jax.Array, " 2"], *, initial_efficacy=0.124575, exponent=1.1
+    state: Float[jax.Array, " 2"],
+    *,
+    initial_efficacy: ScalarFloat = 0.509949,
+    exponent: ScalarFloat = 1.2,
 ) -> Float[jax.Array, ""]:
     resource_of_ai = get_resource_of_ai(state)
     return initial_efficacy * resource_of_ai**exponent
@@ -73,9 +86,9 @@ def get_efficacy_of_ai(
 def get_production_cost(
     state: Float[jax.Array, " 2"],
     *,
-    initial_cost=1.0,
-    initial_resource=9.19963,
-    learning_rate=0.25,
+    initial_cost: ScalarFloat = 1.0,
+    initial_resource: ScalarFloat = INITIAL_RESOURCE,
+    learning_rate: ScalarFloat = 0.25,
 ) -> Float[jax.Array, ""]:
     """Learning curve."""
     resource = get_resource(state)
@@ -84,7 +97,9 @@ def get_production_cost(
 
 
 def get_greedy_dynamics_of_humankind(
-    state: Float[jax.Array, " 2"], *, redistribution_cost: float = 50.0
+    state: Float[jax.Array, " 2"],
+    *,
+    redistribution_cost: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
 ) -> Float[jax.Array, " 2"]:
     production_cost = get_production_cost(state)
     costs = jnp.array([production_cost, redistribution_cost])
@@ -101,7 +116,9 @@ def get_greedy_dynamics_of_humankind(
 
 
 def get_greedy_dynamics_of_ai(
-    state: Float[jax.Array, " 2"], *, redistribution_cost: float = 250.0
+    state: Float[jax.Array, " 2"],
+    *,
+    redistribution_cost: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
 ) -> Float[jax.Array, " 2"]:
     production_cost = get_production_cost(state)
     costs = jnp.array([production_cost, redistribution_cost])
@@ -115,8 +132,19 @@ def get_greedy_dynamics_of_ai(
     return efficacy_of_ai * (normalized_cost_adjusted_grad_resource_of_ai / costs)
 
 
-def get_greedy_dynamics(state: Float[jax.Array, " 2"]) -> Float[jax.Array, " 2"]:
-    return get_greedy_dynamics_of_humankind(state) + get_greedy_dynamics_of_ai(state)
+def get_greedy_dynamics(
+    state: Float[jax.Array, " 2"],
+    *,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+) -> Float[jax.Array, " 2"]:
+    greedy_dynamics_of_humankind = get_greedy_dynamics_of_humankind(
+        state, redistribution_cost=redistribution_cost_of_humankind
+    )
+    greedy_dynamics_of_ai = get_greedy_dynamics_of_ai(
+        state, redistribution_cost=redistribution_cost_of_ai
+    )
+    return greedy_dynamics_of_humankind + greedy_dynamics_of_ai
 
 
 def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
