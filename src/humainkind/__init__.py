@@ -25,12 +25,12 @@ def create_state(
 
 def get_resource(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
     resource, _ = state
-    return resource
+    return jnp.max(jnp.array([0.0, resource]))
 
 
 def get_share_of_humankind(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
     _, share_of_humankind = state
-    return share_of_humankind
+    return jnp.clip(share_of_humankind, 0.0, 1.0)
 
 
 def get_share_of_ai(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
@@ -181,8 +181,8 @@ def solve_greedy_dynamics(
         stepsize_controller=diffrax.PIDController(rtol=1e-7, atol=1e-9),
         event=diffrax.Event(
             (
-                lambda t, y, args, **kwargs: get_share_of_humankind(y),
-                lambda t, y, args, **kwargs: get_share_of_ai(y),
+                lambda t, y, args, **kwargs: y[1],
+                lambda t, y, args, **kwargs: 1 - y[1],
             ),
             root_finder=optimistix.Newton(rtol=1e-7, atol=1e-9),
         ),
