@@ -204,7 +204,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     resource_perturbation: ScalarFloat = 1e-3,
-    share_of_humankind_perturbation: ScalarFloat = 1e-4,
+    share_of_humankind_perturbation: ScalarFloat = 1e-6,
 ) -> tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]:
     resource = get_resource(state)
     share_of_humankind = get_share_of_humankind(state)
