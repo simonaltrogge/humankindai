@@ -1,4 +1,5 @@
 import diffrax
+import equinox
 import jax
 import jax.numpy as jnp
 import optimistix
@@ -153,6 +154,7 @@ def get_greedy_dynamics(
     return greedy_dynamics_of_humankind + greedy_dynamics_of_ai
 
 
+@equinox.filter_jit
 def solve_greedy_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
@@ -490,6 +492,7 @@ def get_farsighted_dynamics(
     return farsighted_dynamics_of_humankind + farsighted_dynamics_of_ai
 
 
+@equinox.filter_jit
 def solve_farsighted_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
