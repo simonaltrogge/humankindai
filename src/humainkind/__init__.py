@@ -200,50 +200,65 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     resource_perturbation: ScalarFloat = 1e-3,
     share_of_humankind_perturbation: ScalarFloat = 1e-4,
 ) -> tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]:
+    resource = get_resource(state)
+    share_of_humankind = get_share_of_humankind(state)
+
+    resource_upwards_perturbation = resource_perturbation
+    resource_downwards_perturbation = jnp.min(
+        jnp.array([resource, resource_perturbation])
+    )
+    # Keep perturbed resource non-negative.
+
     upwards_perturbed_resource_solution = solve_greedy_dynamics(
         initial_state=create_state(
-            resource=get_resource(state) + resource_perturbation,
-            share_of_humankind=get_share_of_humankind(state),
+            resource=resource + resource_upwards_perturbation,
+            share_of_humankind=share_of_humankind,
         ),
         target_duration=planning_horizon,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
-        saveat=diffrax.SaveAt(t1=True, dense=True),
     )
     downwards_perturbed_resource_solution = solve_greedy_dynamics(
         initial_state=create_state(
-            resource=get_resource(state) - resource_perturbation,
-            share_of_humankind=get_share_of_humankind(state),
+            resource=resource - resource_downwards_perturbation,
+            share_of_humankind=share_of_humankind,
         ),
         target_duration=planning_horizon,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
-        saveat=diffrax.SaveAt(t1=True, dense=True),
     )
+
+    share_of_humankind_upwards_perturbation = jnp.min(
+        jnp.array([1 - share_of_humankind, share_of_humankind_perturbation])
+    )
+    share_of_humankind_downwards_perturbation = jnp.min(
+        jnp.array([share_of_humankind, share_of_humankind_perturbation])
+    )
+    # Keep perturbed share of humankind between 0 and 1.
+
     upwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
         initial_state=create_state(
-            resource=get_resource(state),
+            resource=resource,
             share_of_humankind=(
-                get_share_of_humankind(state) + share_of_humankind_perturbation
+                share_of_humankind + share_of_humankind_upwards_perturbation
             ),
         ),
         target_duration=planning_horizon,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
-        saveat=diffrax.SaveAt(t1=True, dense=True),
     )
     downwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
         initial_state=create_state(
-            resource=get_resource(state),
+            resource=resource,
             share_of_humankind=(
-                get_share_of_humankind(state) - share_of_humankind_perturbation
+                share_of_humankind - share_of_humankind_downwards_perturbation
             ),
         ),
         target_duration=planning_horizon,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
-        saveat=diffrax.SaveAt(t1=True, dense=True),
     )
+
     assert upwards_perturbed_resource_solution.ts is not None
     assert downwards_perturbed_resource_solution.ts is not None
     assert upwards_perturbed_share_of_humankind_solution.ts is not None
@@ -258,18 +273,68 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ]
         )
     )
+
+    # Recalculate solutions at prediction time
+    recalculated_upwards_perturbed_resource_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=resource + resource_upwards_perturbation,
+            share_of_humankind=share_of_humankind,
+        ),
+        target_duration=prediction_time,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+    )
+    recalculated_downwards_perturbed_resource_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=resource - resource_downwards_perturbation,
+            share_of_humankind=share_of_humankind,
+        ),
+        target_duration=prediction_time,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+    )
+    recalculated_upwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
+        initial_state=create_state(
+            resource=resource,
+            share_of_humankind=(
+                share_of_humankind + share_of_humankind_upwards_perturbation
+            ),
+        ),
+        target_duration=prediction_time,
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+    )
+    recalculated_downwards_perturbed_share_of_humankind_solution = (
+        solve_greedy_dynamics(
+            initial_state=create_state(
+                resource=resource,
+                share_of_humankind=(
+                    share_of_humankind - share_of_humankind_downwards_perturbation
+                ),
+            ),
+            target_duration=prediction_time,
+            redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+            redistribution_cost_of_ai=redistribution_cost_of_ai,
+        )
+    )
+
+    assert recalculated_upwards_perturbed_resource_solution.ys is not None
+    assert recalculated_downwards_perturbed_resource_solution.ys is not None
+    assert recalculated_upwards_perturbed_share_of_humankind_solution.ys is not None
+    assert recalculated_downwards_perturbed_share_of_humankind_solution.ys is not None
     upwards_perturbed_resource_predicted_state = (
-        upwards_perturbed_resource_solution.evaluate(prediction_time)
+        recalculated_upwards_perturbed_resource_solution.ys[0]
     )
     downwards_perturbed_resource_predicted_state = (
-        downwards_perturbed_resource_solution.evaluate(prediction_time)
+        recalculated_downwards_perturbed_resource_solution.ys[0]
     )
     upwards_perturbed_share_of_humankind_predicted_state = (
-        upwards_perturbed_share_of_humankind_solution.evaluate(prediction_time)
+        recalculated_upwards_perturbed_share_of_humankind_solution.ys[0]
     )
     downwards_perturbed_share_of_humankind_predicted_state = (
-        downwards_perturbed_share_of_humankind_solution.evaluate(prediction_time)
+        recalculated_downwards_perturbed_share_of_humankind_solution.ys[0]
     )
+
     predicted_gradient_of_resource_of_humankind = jnp.array(
         [
             (
@@ -278,7 +343,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
                     downwards_perturbed_resource_predicted_state
                 )
             )
-            / (2 * resource_perturbation),
+            / (resource_upwards_perturbation + resource_downwards_perturbation),
             (
                 get_resource_of_humankind(
                     upwards_perturbed_share_of_humankind_predicted_state
@@ -287,7 +352,10 @@ def predict_gradients_of_resources_of_humankind_and_ai(
                     downwards_perturbed_share_of_humankind_predicted_state
                 )
             )
-            / (2 * share_of_humankind_perturbation),
+            / (
+                share_of_humankind_upwards_perturbation
+                + share_of_humankind_downwards_perturbation
+            ),
         ]
     )
     predicted_gradient_of_resource_of_ai = jnp.array(
@@ -296,14 +364,17 @@ def predict_gradients_of_resources_of_humankind_and_ai(
                 get_resource_of_ai(upwards_perturbed_resource_predicted_state)
                 - get_resource_of_ai(downwards_perturbed_resource_predicted_state)
             )
-            / (2 * resource_perturbation),
+            / (resource_upwards_perturbation + resource_downwards_perturbation),
             (
                 get_resource_of_ai(upwards_perturbed_share_of_humankind_predicted_state)
                 - get_resource_of_ai(
                     downwards_perturbed_share_of_humankind_predicted_state
                 )
             )
-            / (2 * share_of_humankind_perturbation),
+            / (
+                share_of_humankind_upwards_perturbation
+                + share_of_humankind_downwards_perturbation
+            ),
         ]
     )
 
@@ -347,21 +418,22 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     production_cost = get_production_cost(state)
 
     costs_of_humankind = jnp.array([production_cost, redistribution_cost_of_humankind])
-    normalized_cost_adjusted_grad_resource_of_humankind = normalized(
+    normalized_cost_adjusted_grad_predicted_resource_of_humankind = normalized(
         cost_adjusted(grad_predicted_resource_of_humankind, costs_of_humankind)
     )
     efficacy_of_humankind = get_efficacy_of_humankind(state)
     farsighted_dynamics_of_humankind = efficacy_of_humankind * (
-        normalized_cost_adjusted_grad_resource_of_humankind / costs_of_humankind
+        normalized_cost_adjusted_grad_predicted_resource_of_humankind
+        / costs_of_humankind
     )
 
     costs_of_ai = jnp.array([production_cost, redistribution_cost_of_ai])
-    normalized_cost_adjusted_grad_resource_of_ai = normalized(
+    normalized_cost_adjusted_grad_predicted_resource_of_ai = normalized(
         cost_adjusted(grad_predicted_resource_of_ai, costs_of_ai)
     )
     efficacy_of_ai = get_efficacy_of_ai(state)
     farsighted_dynamics_of_ai = efficacy_of_ai * (
-        normalized_cost_adjusted_grad_resource_of_ai / costs_of_ai
+        normalized_cost_adjusted_grad_predicted_resource_of_ai / costs_of_ai
     )
 
     return (farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai)
