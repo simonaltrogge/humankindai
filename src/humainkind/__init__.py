@@ -157,6 +157,8 @@ def solve_greedy_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
     *,
+    rtol: float,
+    atol: float,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     saveat: diffrax.SaveAt | None = None,
@@ -178,13 +180,13 @@ def solve_greedy_dynamics(
         dt0=None,
         y0=initial_state,
         saveat=saveat,
-        stepsize_controller=diffrax.PIDController(rtol=1e-7, atol=1e-9),
+        stepsize_controller=diffrax.PIDController(rtol=rtol, atol=atol, dtmax=1),
         event=diffrax.Event(
             (
                 lambda t, y, args, **kwargs: y[1],
                 lambda t, y, args, **kwargs: 1 - y[1],
             ),
-            root_finder=optimistix.Newton(rtol=1e-7, atol=1e-9),
+            root_finder=optimistix.Newton(rtol=rtol, atol=atol),
         ),
     )
 
@@ -194,6 +196,8 @@ def solve_greedy_dynamics(
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
+    rtol: float,
+    atol: float,
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
@@ -215,6 +219,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=planning_horizon,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -224,6 +230,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=planning_horizon,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -244,6 +252,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ),
         ),
         target_duration=planning_horizon,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -255,6 +265,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ),
         ),
         target_duration=planning_horizon,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -281,6 +293,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=prediction_time,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -290,6 +304,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=prediction_time,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -301,6 +317,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ),
         ),
         target_duration=prediction_time,
+        rtol=rtol,
+        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
     )
@@ -313,6 +331,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
                 ),
             ),
             target_duration=prediction_time,
+            rtol=rtol,
+            atol=atol,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
         )
@@ -390,6 +410,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 def get_farsighted_dynamics_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
+    rtol: float,
+    atol: float,
     planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
@@ -400,6 +422,8 @@ def get_farsighted_dynamics_of_humankind_and_ai(
         (grad_predicted_resource_of_humankind, grad_predicted_resource_of_ai),
     ) = predict_gradients_of_resources_of_humankind_and_ai(
         state,
+        rtol=rtol,
+        atol=atol,
         planning_horizon=planning_horizon_of_humankind,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
@@ -410,6 +434,8 @@ def get_farsighted_dynamics_of_humankind_and_ai(
             (_, grad_predicted_resource_of_ai),
         ) = predict_gradients_of_resources_of_humankind_and_ai(
             state,
+            rtol=rtol,
+            atol=atol,
             planning_horizon=planning_horizon_of_ai,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
@@ -442,6 +468,8 @@ def get_farsighted_dynamics_of_humankind_and_ai(
 def get_farsighted_dynamics(
     state: Float[jax.Array, " 2"],
     *,
+    rtol: float,
+    atol: float,
     planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
@@ -450,6 +478,8 @@ def get_farsighted_dynamics(
     farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai = (
         get_farsighted_dynamics_of_humankind_and_ai(
             state,
+            rtol=rtol,
+            atol=atol,
             planning_horizon_of_humankind=planning_horizon_of_humankind,
             planning_horizon_of_ai=planning_horizon_of_ai,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
