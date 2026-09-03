@@ -518,12 +518,22 @@ def solve_farsighted_dynamics(
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
-    saveat: diffrax.SaveAt | None = None,
-    max_steps: int | None = 16**5,
-    **kwargs,
+    **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
-    if saveat is None:
-        saveat = diffrax.SaveAt(t0=False, t1=True, dense=False)
+    default_diffeqsolve_kwargs = {
+        "solver": diffrax.Tsit5(),
+        "dt0": None,
+        "saveat": diffrax.SaveAt(t0=False, t1=True, dense=False),
+        "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=1),
+        "event": diffrax.Event(
+            (
+                lambda t, y, args, **kwargs: get_raw_share_of_humankind(y),
+                lambda t, y, args, **kwargs: get_raw_share_of_ai(y),
+            ),
+            root_finder=optimistix.Newton(rtol=rtol, atol=atol),
+        ),
+        "max_steps": 16**6,
+    }
 
     solution = diffrax.diffeqsolve(
         terms=diffrax.ODETerm(
@@ -537,22 +547,10 @@ def solve_farsighted_dynamics(
                 redistribution_cost_of_ai=redistribution_cost_of_ai,
             )
         ),
-        solver=diffrax.Tsit5(),
         t0=0.0,
         t1=target_duration,
-        dt0=None,
         y0=initial_state,
-        saveat=saveat,
-        stepsize_controller=diffrax.PIDController(rtol=rtol, atol=atol, dtmax=1),
-        event=diffrax.Event(
-            (
-                lambda t, y, args, **kwargs: y[1],
-                lambda t, y, args, **kwargs: 1 - y[1],
-            ),
-            root_finder=optimistix.Newton(rtol=rtol, atol=atol),
-        ),
-        max_steps=max_steps,
-        **kwargs,
+        **(default_diffeqsolve_kwargs | diffeqsolve_kwargs),
     )
 
     return solution
