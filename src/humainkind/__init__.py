@@ -514,6 +514,7 @@ def solve_farsighted_dynamics(
     *,
     rtol: float,
     atol: float,
+    dtmax: float | None = None,
     planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
@@ -524,7 +525,7 @@ def solve_farsighted_dynamics(
         "solver": diffrax.Tsit5(),
         "dt0": None,
         "saveat": diffrax.SaveAt(t0=False, t1=True, dense=False),
-        "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=1),
+        "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=dtmax),
         "event": diffrax.Event(
             (
                 lambda t, y, args, **kwargs: get_raw_share_of_humankind(y),
