@@ -490,6 +490,56 @@ def get_farsighted_dynamics(
     return farsighted_dynamics_of_humankind + farsighted_dynamics_of_ai
 
 
+def solve_farsighted_dynamics(
+    initial_state: Float[jax.Array, " 2"],
+    target_duration: ScalarFloat,
+    *,
+    rtol: float,
+    atol: float,
+    planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
+    planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    saveat: diffrax.SaveAt | None = None,
+    max_steps: int | None = 16**5,
+    **kwargs,
+) -> diffrax.Solution:
+    if saveat is None:
+        saveat = diffrax.SaveAt(t0=False, t1=True, dense=False)
+
+    solution = diffrax.diffeqsolve(
+        terms=diffrax.ODETerm(
+            lambda t, y, args: get_farsighted_dynamics(
+                y,
+                rtol=rtol,
+                atol=atol,
+                planning_horizon_of_humankind=planning_horizon_of_humankind,
+                planning_horizon_of_ai=planning_horizon_of_ai,
+                redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+                redistribution_cost_of_ai=redistribution_cost_of_ai,
+            )
+        ),
+        solver=diffrax.Tsit5(),
+        t0=0.0,
+        t1=target_duration,
+        dt0=None,
+        y0=initial_state,
+        saveat=saveat,
+        stepsize_controller=diffrax.PIDController(rtol=rtol, atol=atol, dtmax=1),
+        event=diffrax.Event(
+            (
+                lambda t, y, args, **kwargs: y[1],
+                lambda t, y, args, **kwargs: 1 - y[1],
+            ),
+            root_finder=optimistix.Newton(rtol=rtol, atol=atol),
+        ),
+        max_steps=max_steps,
+        **kwargs,
+    )
+
+    return solution
+
+
 def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
     norm = jnp.linalg.vector_norm(vector)
     norm = jnp.where(norm == 0.0, 1.0, norm)
