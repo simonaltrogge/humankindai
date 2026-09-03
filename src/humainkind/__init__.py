@@ -461,7 +461,9 @@ def get_farsighted_dynamics(
 
 
 def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
-    return vector / jnp.linalg.vector_norm(vector)
+    norm = jnp.linalg.vector_norm(vector)
+    norm = jnp.where(norm == 0.0, 1.0, norm)
+    return vector / norm
 
 
 def cost_adjusted(
