@@ -1,9 +1,11 @@
+from collections.abc import Callable
+
 import diffrax
 import equinox
 import jax
 import jax.numpy as jnp
 import optimistix
-from jaxtyping import Float
+from jaxtyping import Float, Shaped
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_debug_nans", True)
@@ -555,6 +557,29 @@ def solve_farsighted_dynamics(
     )
 
     return solution
+
+
+def get_times_and_mapped_states(
+    solution: diffrax.Solution,
+    mapping: Callable[[Float[jax.Array, " 2"]], Shaped[jax.Array, " *dim"]],
+    *,
+    unmasked: bool = False,
+) -> tuple[Float[jax.Array, " times"], Shaped[jax.Array, " times *dim"]]:
+    assert solution.ts is not None
+    assert solution.ys is not None
+
+    if unmasked:
+        times = solution.ts
+        states = solution.ys
+    else:
+        mask = jnp.isfinite(solution.ts)
+        times = solution.ts[mask]
+        states = solution.ys[mask]
+
+    vectorized_mapping = jax.vmap(mapping)
+    mapped_states = vectorized_mapping(states)
+
+    return (times, mapped_states)
 
 
 def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
