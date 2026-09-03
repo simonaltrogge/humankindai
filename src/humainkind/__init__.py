@@ -24,6 +24,21 @@ def create_state(
     return jnp.array([resource, share_of_humankind])
 
 
+def get_raw_resource(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
+    resource, _ = state
+    return resource
+
+
+def get_raw_share_of_humankind(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
+    _, share_of_humankind = state
+    return share_of_humankind
+
+
+def get_raw_share_of_ai(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
+    _, share_of_humankind = state
+    return 1 - share_of_humankind
+
+
 def get_resource(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
     resource, _ = state
     return jnp.max(jnp.array([0.0, resource]))
