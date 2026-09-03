@@ -8,8 +8,8 @@ from jaxtyping import Float
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_debug_nans", True)
 
-INITIAL_RESOURCE = 8.10
-INITIAL_SHARE_OF_HUMANKIND = 0.9970
+INITIAL_RESOURCE = 8.098431980182847
+INITIAL_SHARE_OF_HUMANKIND = 0.9969959732271604
 REDISTRIBUTION_COST_OF_HUMANKIND = 70.0
 REDISTRIBUTION_COST_OF_AI = 500.0
 PLANNING_HORIZON = 36  # months, that is, three years
@@ -72,7 +72,7 @@ def grad_get_resource_of_ai(
 def get_efficacy_of_humankind(
     state: Float[jax.Array, " 2"],
     *,
-    conversion_factor: ScalarFloat = 0.000240582,
+    conversion_factor: ScalarFloat = 0.00024058187581593312,
     slope: ScalarFloat = 10.01,
     intercept: ScalarFloat = 2.31,
 ) -> Float[jax.Array, ""]:
@@ -83,7 +83,7 @@ def get_efficacy_of_humankind(
 def get_efficacy_of_ai(
     state: Float[jax.Array, " 2"],
     *,
-    initial_efficacy: ScalarFloat = 0.509949,
+    initial_efficacy: ScalarFloat = 0.5099485090045803,
     exponent: ScalarFloat = 1.2,
 ) -> Float[jax.Array, ""]:
     resource_of_ai = get_resource_of_ai(state)
