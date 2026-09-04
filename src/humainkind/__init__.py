@@ -561,6 +561,24 @@ def solve_farsighted_dynamics(
     return solution
 
 
+def get_times(solution: diffrax.Solution):
+    assert solution.ts is not None
+    return solution.ts[jnp.isfinite(solution.ts)]
+
+
+def map_states(
+    solution: diffrax.Solution,
+    mapping: Callable[[Float[jax.Array, " 2"]], Shaped[jax.Array, " *dim"]],
+):
+    assert solution.ts is not None
+    assert solution.ys is not None
+
+    mask = jnp.isfinite(solution.ts)
+    valid_states = solution.ys[mask]
+
+    return jax.vmap(mapping)(valid_states)
+
+
 def get_times_and_mapped_states(
     solution: diffrax.Solution,
     mapping: Callable[[Float[jax.Array, " 2"]], Shaped[jax.Array, " *dim"]],
