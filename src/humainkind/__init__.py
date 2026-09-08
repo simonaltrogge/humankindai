@@ -132,15 +132,19 @@ def get_greedy_dynamics_of_humankind(
     state: Float[jax.Array, " 2"],
     *,
     redistribution_cost: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    efficacy_of_humankind_params: dict | None = None,
+    learning_curve_params: dict | None = None,
 ) -> Float[jax.Array, " 2"]:
-    production_cost = get_production_cost(state)
+    production_cost = get_production_cost(state, **(learning_curve_params or {}))
     costs = jnp.array([production_cost, redistribution_cost])
 
     grad_resource_of_humankind = grad_get_resource_of_humankind(state)
     normalized_cost_adjusted_grad_resource_of_humankind = normalized(
         cost_adjusted(grad_resource_of_humankind, costs)
     )
-    efficacy_of_humankind = get_efficacy_of_humankind(state)
+    efficacy_of_humankind = get_efficacy_of_humankind(
+        state, **(efficacy_of_humankind_params or {})
+    )
 
     return efficacy_of_humankind * (
         normalized_cost_adjusted_grad_resource_of_humankind / costs
@@ -151,15 +155,17 @@ def get_greedy_dynamics_of_ai(
     state: Float[jax.Array, " 2"],
     *,
     redistribution_cost: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
 ) -> Float[jax.Array, " 2"]:
-    production_cost = get_production_cost(state)
+    production_cost = get_production_cost(state, **(learning_curve_params or {}))
     costs = jnp.array([production_cost, redistribution_cost])
 
     grad_resource_of_ai = grad_get_resource_of_ai(state)
     normalized_cost_adjusted_grad_resource_of_ai = normalized(
         cost_adjusted(grad_resource_of_ai, costs)
     )
-    efficacy_of_ai = get_efficacy_of_ai(state)
+    efficacy_of_ai = get_efficacy_of_ai(state, **(efficacy_of_ai_params or {}))
 
     return efficacy_of_ai * (normalized_cost_adjusted_grad_resource_of_ai / costs)
 
@@ -169,12 +175,21 @@ def get_greedy_dynamics(
     *,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
 ) -> Float[jax.Array, " 2"]:
     greedy_dynamics_of_humankind = get_greedy_dynamics_of_humankind(
-        state, redistribution_cost=redistribution_cost_of_humankind
+        state,
+        redistribution_cost=redistribution_cost_of_humankind,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        learning_curve_params=learning_curve_params,
     )
     greedy_dynamics_of_ai = get_greedy_dynamics_of_ai(
-        state, redistribution_cost=redistribution_cost_of_ai
+        state,
+        redistribution_cost=redistribution_cost_of_ai,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     return greedy_dynamics_of_humankind + greedy_dynamics_of_ai
 
@@ -189,6 +204,9 @@ def solve_greedy_dynamics(
     dtmax: float | None = None,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
@@ -211,6 +229,9 @@ def solve_greedy_dynamics(
                 y,
                 redistribution_cost_of_humankind=redistribution_cost_of_humankind,
                 redistribution_cost_of_ai=redistribution_cost_of_ai,
+                efficacy_of_humankind_params=efficacy_of_humankind_params,
+                efficacy_of_ai_params=efficacy_of_ai_params,
+                learning_curve_params=learning_curve_params,
             )
         ),
         t0=0.0,
@@ -232,6 +253,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     resource_perturbation: ScalarFloat = 1e-3,
     share_of_humankind_perturbation: ScalarFloat = 1e-6,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
 ) -> tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]:
     resource = get_resource(state)
     share_of_humankind = get_share_of_humankind(state)
@@ -252,6 +276,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     downwards_perturbed_resource_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -263,6 +290,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
 
     share_of_humankind_upwards_perturbation = jnp.min(
@@ -285,6 +315,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     downwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -298,6 +331,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
 
     assert upwards_perturbed_resource_solution.ts is not None
@@ -326,6 +362,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     recalculated_downwards_perturbed_resource_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -337,6 +376,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     recalculated_upwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -350,6 +392,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     recalculated_downwards_perturbed_share_of_humankind_solution = (
         solve_greedy_dynamics(
@@ -364,6 +409,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             atol=atol,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
+            efficacy_of_humankind_params=efficacy_of_humankind_params,
+            efficacy_of_ai_params=efficacy_of_ai_params,
+            learning_curve_params=learning_curve_params,
         )
     )
 
@@ -445,6 +493,9 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
 ) -> tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]:
     (
         _,
@@ -456,6 +507,9 @@ def get_farsighted_dynamics_of_humankind_and_ai(
         planning_horizon=planning_horizon_of_humankind,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
     )
     if planning_horizon_of_ai != planning_horizon_of_humankind:
         (
@@ -468,15 +522,20 @@ def get_farsighted_dynamics_of_humankind_and_ai(
             planning_horizon=planning_horizon_of_ai,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
+            efficacy_of_humankind_params=efficacy_of_humankind_params,
+            efficacy_of_ai_params=efficacy_of_ai_params,
+            learning_curve_params=learning_curve_params,
         )
 
-    production_cost = get_production_cost(state)
+    production_cost = get_production_cost(state, **(learning_curve_params or {}))
 
     costs_of_humankind = jnp.array([production_cost, redistribution_cost_of_humankind])
     normalized_cost_adjusted_grad_predicted_resource_of_humankind = normalized(
         cost_adjusted(grad_predicted_resource_of_humankind, costs_of_humankind)
     )
-    efficacy_of_humankind = get_efficacy_of_humankind(state)
+    efficacy_of_humankind = get_efficacy_of_humankind(
+        state, **(efficacy_of_humankind_params or {})
+    )
     farsighted_dynamics_of_humankind = efficacy_of_humankind * (
         normalized_cost_adjusted_grad_predicted_resource_of_humankind
         / costs_of_humankind
@@ -486,7 +545,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     normalized_cost_adjusted_grad_predicted_resource_of_ai = normalized(
         cost_adjusted(grad_predicted_resource_of_ai, costs_of_ai)
     )
-    efficacy_of_ai = get_efficacy_of_ai(state)
+    efficacy_of_ai = get_efficacy_of_ai(state, **(efficacy_of_ai_params or {}))
     farsighted_dynamics_of_ai = efficacy_of_ai * (
         normalized_cost_adjusted_grad_predicted_resource_of_ai / costs_of_ai
     )
@@ -503,6 +562,9 @@ def get_farsighted_dynamics(
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
 ) -> Float[jax.Array, " 2"]:
     farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai = (
         get_farsighted_dynamics_of_humankind_and_ai(
@@ -513,6 +575,9 @@ def get_farsighted_dynamics(
             planning_horizon_of_ai=planning_horizon_of_ai,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
+            efficacy_of_humankind_params=efficacy_of_humankind_params,
+            efficacy_of_ai_params=efficacy_of_ai_params,
+            learning_curve_params=learning_curve_params,
         )
     )
 
@@ -531,6 +596,9 @@ def solve_farsighted_dynamics(
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
@@ -558,6 +626,9 @@ def solve_farsighted_dynamics(
                 planning_horizon_of_ai=planning_horizon_of_ai,
                 redistribution_cost_of_humankind=redistribution_cost_of_humankind,
                 redistribution_cost_of_ai=redistribution_cost_of_ai,
+                efficacy_of_humankind_params=efficacy_of_humankind_params,
+                efficacy_of_ai_params=efficacy_of_ai_params,
+                learning_curve_params=learning_curve_params,
             )
         ),
         t0=0.0,
