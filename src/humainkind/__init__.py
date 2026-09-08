@@ -15,6 +15,8 @@ INITIAL_SHARE_OF_HUMANKIND = 0.9969959732271604
 REDISTRIBUTION_COST_OF_HUMANKIND = 70.0
 REDISTRIBUTION_COST_OF_AI = 500.0
 PLANNING_HORIZON = 36  # months, that is, three years
+EFFICACY_OF_AI_FACTOR = 0.5099485090045803
+EFFICACY_OF_AI_EXPONENT = 1.2
 
 type ScalarFloat = float | Float[jax.Array, ""]
 
@@ -106,11 +108,11 @@ def get_efficacy_of_humankind(
 def get_efficacy_of_ai(
     state: Float[jax.Array, " 2"],
     *,
-    initial_efficacy: ScalarFloat = 0.5099485090045803,
-    exponent: ScalarFloat = 1.2,
+    factor: ScalarFloat = EFFICACY_OF_AI_FACTOR,
+    exponent: ScalarFloat = EFFICACY_OF_AI_EXPONENT,
 ) -> Float[jax.Array, ""]:
     resource_of_ai = get_resource_of_ai(state)
-    return initial_efficacy * resource_of_ai**exponent
+    return factor * resource_of_ai**exponent
 
 
 def get_production_cost(
