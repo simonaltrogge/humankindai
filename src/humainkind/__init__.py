@@ -27,28 +27,28 @@ def create_state(
 
 
 def get_raw_resource(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
-    resource, _ = state
-    return resource
+    raw_resource, _ = state
+    return raw_resource
 
 
 def get_raw_share_of_humankind(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
-    _, share_of_humankind = state
-    return share_of_humankind
+    _, raw_share_of_humankind = state
+    return raw_share_of_humankind
 
 
 def get_raw_share_of_ai(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
-    _, share_of_humankind = state
-    return 1 - share_of_humankind
+    raw_share_of_humankind = get_raw_share_of_humankind(state)
+    return 1 - raw_share_of_humankind
 
 
 def get_resource(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
-    resource, _ = state
-    return jnp.max(jnp.array([0.0, resource]))
+    raw_resource = get_raw_resource(state)
+    return jnp.max(jnp.array([0.0, raw_resource]))
 
 
 def get_share_of_humankind(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
-    _, share_of_humankind = state
-    return jnp.clip(share_of_humankind, 0.0, 1.0)
+    raw_share_of_humankind = get_raw_share_of_humankind(state)
+    return jnp.clip(raw_share_of_humankind, 0.0, 1.0)
 
 
 def get_share_of_ai(state: Float[jax.Array, " 2"]) -> Float[jax.Array, ""]:
@@ -74,7 +74,10 @@ def grad_get_resource_of_humankind(
     resource = get_resource(state)
     share_of_humankind = get_share_of_humankind(state)
 
-    return jnp.array([share_of_humankind, resource])
+    derivative_wrt_resource = share_of_humankind
+    derivative_wrt_share_of_humankind = resource
+
+    return jnp.array([derivative_wrt_resource, derivative_wrt_share_of_humankind])
 
 
 def grad_get_resource_of_ai(
@@ -83,7 +86,10 @@ def grad_get_resource_of_ai(
     resource = get_resource(state)
     share_of_ai = get_share_of_ai(state)
 
-    return jnp.array([share_of_ai, -resource])
+    derivative_wrt_resource = share_of_ai
+    derivative_wrt_share_of_humankind = -resource
+
+    return jnp.array([derivative_wrt_resource, derivative_wrt_share_of_humankind])
 
 
 def get_efficacy_of_humankind(
