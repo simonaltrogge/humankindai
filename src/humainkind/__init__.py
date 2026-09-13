@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Literal, overload
 
 import diffrax
 import equinox
@@ -243,6 +244,7 @@ def solve_greedy_dynamics(
     return solution
 
 
+@overload
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
@@ -256,7 +258,44 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-) -> tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]:
+    early_return_prediction_time_only: Literal[False] = False,
+) -> tuple[
+    Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]
+]: ...
+@overload
+def predict_gradients_of_resources_of_humankind_and_ai(
+    state: Float[jax.Array, " 2"],
+    *,
+    rtol: float,
+    atol: float,
+    planning_horizon: ScalarFloat = PLANNING_HORIZON,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    resource_perturbation: ScalarFloat = 1e-3,
+    share_of_humankind_perturbation: ScalarFloat = 1e-6,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
+    early_return_prediction_time_only: Literal[True],
+) -> Float[jax.Array, ""]: ...
+def predict_gradients_of_resources_of_humankind_and_ai(
+    state: Float[jax.Array, " 2"],
+    *,
+    rtol: float,
+    atol: float,
+    planning_horizon: ScalarFloat = PLANNING_HORIZON,
+    redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
+    redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
+    resource_perturbation: ScalarFloat = 1e-3,
+    share_of_humankind_perturbation: ScalarFloat = 1e-6,
+    efficacy_of_humankind_params: dict | None = None,
+    efficacy_of_ai_params: dict | None = None,
+    learning_curve_params: dict | None = None,
+    early_return_prediction_time_only: bool = False,
+) -> (
+    Float[jax.Array, ""]
+    | tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]
+):
     resource = get_resource(state)
     share_of_humankind = get_share_of_humankind(state)
 
@@ -350,6 +389,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ]
         )
     )
+
+    if early_return_prediction_time_only:
+        return prediction_time
 
     # Recalculate solutions at prediction time
     recalculated_upwards_perturbed_resource_solution = solve_greedy_dynamics(
