@@ -323,6 +323,7 @@ def solve_greedy_dynamics(
             ),
             root_finder=optimistix.Newton(rtol=rtol, atol=atol),
         ),
+        "max_steps": 16**4,
     }
 
     solution = diffrax.diffeqsolve(
