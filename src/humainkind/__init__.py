@@ -365,6 +365,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: Literal[False] = False,
     account_for_edge_behavior: bool,
+    **diffeqsolve_kwargs,
 ) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]]: ...
 @overload
 def predict_gradients_of_resources_of_humankind_and_ai(
@@ -381,6 +382,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: Literal[True],
+    **diffeqsolve_kwargs,
 ) -> Float[jax.Array, ""]: ...
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
@@ -397,6 +399,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: bool = False,
     account_for_edge_behavior: bool | object = _sentinel,
+    **diffeqsolve_kwargs,
 ) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]] | Float[jax.Array, ""]:
     assert (
         early_return_prediction_time_only and account_for_edge_behavior is _sentinel
@@ -428,6 +431,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
         account_for_edge_behavior=False,
+        **diffeqsolve_kwargs,
     )
     downwards_perturbed_resource_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -443,6 +447,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
         account_for_edge_behavior=False,
+        **diffeqsolve_kwargs,
     )
 
     share_of_humankind_upwards_perturbation = jnp.min(
@@ -469,6 +474,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
         account_for_edge_behavior=False,
+        **diffeqsolve_kwargs,
     )
     downwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -486,6 +492,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
         account_for_edge_behavior=False,
+        **diffeqsolve_kwargs,
     )
 
     assert upwards_perturbed_resource_solution.ts is not None
@@ -524,6 +531,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         learning_curve_params=learning_curve_params,
         event=None,
         account_for_edge_behavior=True,
+        **diffeqsolve_kwargs,
     )
     recalculated_downwards_perturbed_resource_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -540,6 +548,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         learning_curve_params=learning_curve_params,
         event=None,
         account_for_edge_behavior=True,
+        **diffeqsolve_kwargs,
     )
     recalculated_upwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
         initial_state=create_state(
@@ -558,6 +567,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         learning_curve_params=learning_curve_params,
         event=None,
         account_for_edge_behavior=True,
+        **diffeqsolve_kwargs,
     )
     recalculated_downwards_perturbed_share_of_humankind_solution = (
         solve_greedy_dynamics(
@@ -577,6 +587,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             learning_curve_params=learning_curve_params,
             event=None,
             account_for_edge_behavior=True,
+            **diffeqsolve_kwargs,
         )
     )
 
