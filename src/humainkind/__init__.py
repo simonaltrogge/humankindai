@@ -206,7 +206,7 @@ def get_greedy_dynamics_of_humankind_and_ai(
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
     account_for_edge_behavior: bool,
-) -> tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]:
+) -> Float[jax.Array, "2 2"]:
     greedy_dynamics_of_humankind = get_greedy_dynamics_of_humankind(
         state,
         redistribution_cost=redistribution_cost_of_humankind,
@@ -222,7 +222,9 @@ def get_greedy_dynamics_of_humankind_and_ai(
     )
 
     if not account_for_edge_behavior:
-        return greedy_dynamics_of_humankind, tentative_greedy_dynamics_of_ai
+        return jnp.stack(
+            [greedy_dynamics_of_humankind, tentative_greedy_dynamics_of_ai]
+        )
 
     _, greedy_share_of_humankind_dynamics_of_humankind = greedy_dynamics_of_humankind
     (
@@ -266,7 +268,7 @@ def get_greedy_dynamics_of_humankind_and_ai(
         ]
     )
 
-    return (greedy_dynamics_of_humankind, greedy_dynamics_of_ai)
+    return jnp.stack([greedy_dynamics_of_humankind, greedy_dynamics_of_ai])
 
 
 def get_greedy_dynamics(
@@ -363,9 +365,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: Literal[False] = False,
     account_for_edge_behavior: bool,
-) -> tuple[
-    Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]
-]: ...
+) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]]: ...
 @overload
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
@@ -397,10 +397,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: bool = False,
     account_for_edge_behavior: bool | object = _sentinel,
-) -> (
-    Float[jax.Array, ""]
-    | tuple[Float[jax.Array, ""], tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]]
-):
+) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]] | Float[jax.Array, ""]:
     assert (
         early_return_prediction_time_only and account_for_edge_behavior is _sentinel
     ) or (
@@ -648,9 +645,11 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 
     return (
         prediction_time,
-        (
-            predicted_gradient_of_resource_of_humankind,
-            predicted_gradient_of_resource_of_ai,
+        jnp.stack(
+            [
+                predicted_gradient_of_resource_of_humankind,
+                predicted_gradient_of_resource_of_ai,
+            ]
         ),
     )
 
@@ -668,7 +667,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
     account_for_edge_behavior: bool,
-) -> tuple[Float[jax.Array, " 2"], Float[jax.Array, " 2"]]:
+) -> Float[jax.Array, "2 2"]:
     (
         _,
         (grad_predicted_resource_of_humankind, grad_predicted_resource_of_ai),
@@ -725,7 +724,9 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     )
 
     if not account_for_edge_behavior:
-        return (farsighted_dynamics_of_humankind, tentative_farsighted_dynamics_of_ai)
+        return jnp.stack(
+            [farsighted_dynamics_of_humankind, tentative_farsighted_dynamics_of_ai]
+        )
 
     _, farsighted_share_of_humankind_dynamics_of_humankind = (
         farsighted_dynamics_of_humankind
@@ -771,7 +772,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
         ]
     )
 
-    return (farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai)
+    return jnp.stack([farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai])
 
 
 def get_farsighted_dynamics(
