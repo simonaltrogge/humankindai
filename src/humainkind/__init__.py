@@ -19,6 +19,9 @@ PLANNING_HORIZON = 36  # months, that is, three years
 EFFICACY_OF_AI_FACTOR = 0.5099485090045803
 EFFICACY_OF_AI_EXPONENT = 1.2
 
+RELATIVE_TOLERANCE = 1e-10
+ABSOLUTE_TOLERANCE = 1e-12
+
 type ScalarFloat = float | Float[jax.Array, ""]
 
 
@@ -137,10 +140,10 @@ def get_production_cost(
 def get_greedy_dynamics_of_humankind(
     state: Float[jax.Array, " 2"],
     *,
+    account_for_edge_behavior: bool,
     redistribution_cost: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     efficacy_of_humankind_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
 ) -> Float[jax.Array, " 2"]:
     production_cost = get_production_cost(state, **(learning_curve_params or {}))
     costs = jnp.array([production_cost, redistribution_cost])
@@ -200,19 +203,19 @@ def _get_resource_dynamics_of_ai_when_marginalizing(
 def get_greedy_dynamics_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
+    account_for_edge_behavior: bool,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
 ) -> Float[jax.Array, "2 2"]:
     greedy_dynamics_of_humankind = get_greedy_dynamics_of_humankind(
         state,
+        account_for_edge_behavior=account_for_edge_behavior,
         redistribution_cost=redistribution_cost_of_humankind,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         learning_curve_params=learning_curve_params,
-        account_for_edge_behavior=account_for_edge_behavior,
     )
     tentative_greedy_dynamics_of_ai = get_tentative_greedy_dynamics_of_ai(
         state,
@@ -274,22 +277,22 @@ def get_greedy_dynamics_of_humankind_and_ai(
 def get_greedy_dynamics(
     state: Float[jax.Array, " 2"],
     *,
+    account_for_edge_behavior: bool,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
 ) -> Float[jax.Array, " 2"]:
     greedy_dynamics_of_humankind, greedy_dynamics_of_ai = (
         get_greedy_dynamics_of_humankind_and_ai(
             state,
+            account_for_edge_behavior=account_for_edge_behavior,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
             efficacy_of_humankind_params=efficacy_of_humankind_params,
             efficacy_of_ai_params=efficacy_of_ai_params,
             learning_curve_params=learning_curve_params,
-            account_for_edge_behavior=account_for_edge_behavior,
         )
     )
     return greedy_dynamics_of_humankind + greedy_dynamics_of_ai
@@ -300,19 +303,19 @@ def solve_greedy_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
     *,
-    rtol: float,
-    atol: float,
-    dtmax: float | None = None,
+    account_for_edge_behavior: bool,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
+    dtmax: float | None = None,
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
-        "solver": diffrax.Tsit5(),
+        "solver": diffrax.Dopri8(),
         "dt0": None,
         "saveat": diffrax.SaveAt(t0=False, t1=True, dense=False),
         "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=dtmax),
@@ -330,12 +333,12 @@ def solve_greedy_dynamics(
         terms=diffrax.ODETerm(
             lambda t, y, args: get_greedy_dynamics(
                 y,
+                account_for_edge_behavior=account_for_edge_behavior,
                 redistribution_cost_of_humankind=redistribution_cost_of_humankind,
                 redistribution_cost_of_ai=redistribution_cost_of_ai,
                 efficacy_of_humankind_params=efficacy_of_humankind_params,
                 efficacy_of_ai_params=efficacy_of_ai_params,
                 learning_curve_params=learning_curve_params,
-                account_for_edge_behavior=account_for_edge_behavior,
             )
         ),
         t0=0.0,
@@ -354,8 +357,7 @@ _sentinel = object()
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
-    rtol: float,
-    atol: float,
+    account_for_edge_behavior: bool,
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
@@ -365,15 +367,14 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: Literal[False] = False,
-    account_for_edge_behavior: bool,
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
     **diffeqsolve_kwargs,
 ) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]]: ...
 @overload
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
-    rtol: float,
-    atol: float,
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
@@ -383,13 +384,14 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: Literal[True],
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
     **diffeqsolve_kwargs,
 ) -> Float[jax.Array, ""]: ...
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
-    rtol: float,
-    atol: float,
+    account_for_edge_behavior: bool | object = _sentinel,
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
@@ -399,7 +401,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
     early_return_prediction_time_only: bool = False,
-    account_for_edge_behavior: bool | object = _sentinel,
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
     **diffeqsolve_kwargs,
 ) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]] | Float[jax.Array, ""]:
     assert (
@@ -424,13 +427,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=planning_horizon,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         account_for_edge_behavior=False,
         **diffeqsolve_kwargs,
     )
@@ -440,13 +443,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=planning_horizon,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         account_for_edge_behavior=False,
         **diffeqsolve_kwargs,
     )
@@ -467,13 +470,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ),
         ),
         target_duration=planning_horizon,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         account_for_edge_behavior=False,
         **diffeqsolve_kwargs,
     )
@@ -485,13 +488,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ),
         ),
         target_duration=planning_horizon,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         account_for_edge_behavior=False,
         **diffeqsolve_kwargs,
     )
@@ -523,13 +526,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=prediction_time,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         event=None,
         account_for_edge_behavior=True,
         **diffeqsolve_kwargs,
@@ -540,13 +543,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             share_of_humankind=share_of_humankind,
         ),
         target_duration=prediction_time,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         event=None,
         account_for_edge_behavior=True,
         **diffeqsolve_kwargs,
@@ -559,13 +562,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             ),
         ),
         target_duration=prediction_time,
-        rtol=rtol,
-        atol=atol,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
         event=None,
         account_for_edge_behavior=True,
         **diffeqsolve_kwargs,
@@ -579,13 +582,13 @@ def predict_gradients_of_resources_of_humankind_and_ai(
                 ),
             ),
             target_duration=prediction_time,
-            rtol=rtol,
-            atol=atol,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
             efficacy_of_humankind_params=efficacy_of_humankind_params,
             efficacy_of_ai_params=efficacy_of_ai_params,
             learning_curve_params=learning_curve_params,
+            rtol=rtol,
+            atol=atol,
             event=None,
             account_for_edge_behavior=True,
             **diffeqsolve_kwargs,
@@ -669,8 +672,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 def get_farsighted_dynamics_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
-    rtol: float,
-    atol: float,
+    account_for_edge_behavior: bool,
     planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
@@ -678,22 +680,23 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
 ) -> Float[jax.Array, "2 2"]:
     (
         _,
         (grad_predicted_resource_of_humankind, grad_predicted_resource_of_ai),
     ) = predict_gradients_of_resources_of_humankind_and_ai(
         state,
-        rtol=rtol,
-        atol=atol,
+        account_for_edge_behavior=account_for_edge_behavior,
         planning_horizon=planning_horizon_of_humankind,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
         efficacy_of_ai_params=efficacy_of_ai_params,
         learning_curve_params=learning_curve_params,
-        account_for_edge_behavior=account_for_edge_behavior,
+        rtol=rtol,
+        atol=atol,
     )
     if planning_horizon_of_ai != planning_horizon_of_humankind:
         (
@@ -701,15 +704,15 @@ def get_farsighted_dynamics_of_humankind_and_ai(
             (_, grad_predicted_resource_of_ai),
         ) = predict_gradients_of_resources_of_humankind_and_ai(
             state,
-            rtol=rtol,
-            atol=atol,
+            account_for_edge_behavior=account_for_edge_behavior,
             planning_horizon=planning_horizon_of_ai,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
             efficacy_of_humankind_params=efficacy_of_humankind_params,
             efficacy_of_ai_params=efficacy_of_ai_params,
             learning_curve_params=learning_curve_params,
-            account_for_edge_behavior=account_for_edge_behavior,
+            rtol=rtol,
+            atol=atol,
         )
 
     production_cost = get_production_cost(state, **(learning_curve_params or {}))
@@ -790,8 +793,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
 def get_farsighted_dynamics(
     state: Float[jax.Array, " 2"],
     *,
-    rtol: float,
-    atol: float,
+    account_for_edge_behavior: bool,
     planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
@@ -799,13 +801,13 @@ def get_farsighted_dynamics(
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
 ) -> Float[jax.Array, " 2"]:
     farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai = (
         get_farsighted_dynamics_of_humankind_and_ai(
             state,
-            rtol=rtol,
-            atol=atol,
+            account_for_edge_behavior=account_for_edge_behavior,
             planning_horizon_of_humankind=planning_horizon_of_humankind,
             planning_horizon_of_ai=planning_horizon_of_ai,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
@@ -813,7 +815,8 @@ def get_farsighted_dynamics(
             efficacy_of_humankind_params=efficacy_of_humankind_params,
             efficacy_of_ai_params=efficacy_of_ai_params,
             learning_curve_params=learning_curve_params,
-            account_for_edge_behavior=account_for_edge_behavior,
+            rtol=rtol,
+            atol=atol,
         )
     )
     return farsighted_dynamics_of_humankind + farsighted_dynamics_of_ai
@@ -824,9 +827,7 @@ def solve_farsighted_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
     *,
-    rtol: float,
-    atol: float,
-    dtmax: float | None = None,
+    account_for_edge_behavior: bool,
     planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
     planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
@@ -834,11 +835,13 @@ def solve_farsighted_dynamics(
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
-    account_for_edge_behavior: bool,
+    rtol: float = RELATIVE_TOLERANCE,
+    atol: float = ABSOLUTE_TOLERANCE,
+    dtmax: float | None = None,
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
-        "solver": diffrax.Tsit5(),
+        "solver": diffrax.Dopri8(),
         "dt0": None,
         "saveat": diffrax.SaveAt(t0=False, t1=True, dense=False),
         "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=dtmax),
@@ -856,8 +859,7 @@ def solve_farsighted_dynamics(
         terms=diffrax.ODETerm(
             lambda t, y, args: get_farsighted_dynamics(
                 y,
-                rtol=rtol,
-                atol=atol,
+                account_for_edge_behavior=account_for_edge_behavior,
                 planning_horizon_of_humankind=planning_horizon_of_humankind,
                 planning_horizon_of_ai=planning_horizon_of_ai,
                 redistribution_cost_of_humankind=redistribution_cost_of_humankind,
@@ -865,7 +867,8 @@ def solve_farsighted_dynamics(
                 efficacy_of_humankind_params=efficacy_of_humankind_params,
                 efficacy_of_ai_params=efficacy_of_ai_params,
                 learning_curve_params=learning_curve_params,
-                account_for_edge_behavior=account_for_edge_behavior,
+                rtol=rtol,
+                atol=atol,
             )
         ),
         t0=0.0,
