@@ -408,6 +408,11 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 
     resource = get_resource(state)
     share_of_humankind = get_share_of_humankind(state)
+    share_of_ai = get_share_of_ai(state)
+
+    planning_horizon = jnp.where(
+        (share_of_humankind == 0.0) | (share_of_ai == 0.0), 0.0, planning_horizon
+    )
 
     resource_perturbation = resource * 1e-6
     share_of_humankind_perturbation = jnp.max(
@@ -624,19 +629,25 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         share_of_humankind_upwards_perturbation
         + share_of_humankind_downwards_perturbation
     )
-    predicted_gradient_of_resource_of_humankind = jnp.array(
-        [
-            predicted_derivative_of_resource_of_humankind_wrt_resource,
-            jnp.where(
-                (account_for_edge_behavior and share_of_humankind == 1.0)
-                & (
-                    predicted_derivative_of_resource_of_humankind_wrt_share_of_humankind
-                    > 0.0
+    predicted_gradient_of_resource_of_humankind = jnp.where(
+        prediction_time == 0.0,
+        grad_get_resource_of_humankind(
+            state, account_for_edge_behavior=account_for_edge_behavior
+        ),
+        jnp.array(
+            [
+                predicted_derivative_of_resource_of_humankind_wrt_resource,
+                jnp.where(
+                    (account_for_edge_behavior and share_of_humankind == 1.0)
+                    & (
+                        predicted_derivative_of_resource_of_humankind_wrt_share_of_humankind
+                        > 0.0
+                    ),
+                    0.0,
+                    predicted_derivative_of_resource_of_humankind_wrt_share_of_humankind,
                 ),
-                0.0,
-                predicted_derivative_of_resource_of_humankind_wrt_share_of_humankind,
-            ),
-        ]
+            ]
+        ),
     )
 
     predicted_derivative_of_resource_of_ai_wrt_resource = (
@@ -650,11 +661,15 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         share_of_humankind_upwards_perturbation
         + share_of_humankind_downwards_perturbation
     )
-    predicted_gradient_of_resource_of_ai = jnp.array(
-        [
-            predicted_derivative_of_resource_of_ai_wrt_resource,
-            predicted_derivative_of_resource_of_ai_wrt_share_of_humankind,
-        ]
+    predicted_gradient_of_resource_of_ai = jnp.where(
+        prediction_time == 0.0,
+        grad_get_resource_of_ai(state),
+        jnp.array(
+            [
+                predicted_derivative_of_resource_of_ai_wrt_resource,
+                predicted_derivative_of_resource_of_ai_wrt_share_of_humankind,
+            ]
+        ),
     )
 
     return (
