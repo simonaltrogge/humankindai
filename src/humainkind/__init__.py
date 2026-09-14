@@ -20,7 +20,7 @@ EFFICACY_OF_AI_FACTOR = 0.5099485090045803
 EFFICACY_OF_AI_EXPONENT = 1.2
 
 RELATIVE_TOLERANCE = 1e-10
-ABSOLUTE_TOLERANCE = 1e-12
+ABSOLUTE_TOLERANCE = 1e-10
 
 type ScalarFloat = float | Float[jax.Array, ""]
 
@@ -315,7 +315,7 @@ def solve_greedy_dynamics(
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
-        "solver": diffrax.Dopri8(),
+        "solver": diffrax.Tsit5(),
         "dt0": None,
         "saveat": diffrax.SaveAt(t0=False, t1=True, dense=False),
         "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=dtmax),
@@ -841,7 +841,7 @@ def solve_farsighted_dynamics(
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
-        "solver": diffrax.Dopri8(),
+        "solver": diffrax.Tsit5(),
         "dt0": None,
         "saveat": diffrax.SaveAt(t0=False, t1=True, dense=False),
         "stepsize_controller": diffrax.PIDController(rtol=rtol, atol=atol, dtmax=dtmax),
