@@ -106,9 +106,9 @@ def grad_get_resource_of_ai(
 def get_efficacy_of_humankind(
     state: Float[jax.Array, " 2"],
     *,
-    conversion_factor: ScalarFloat = 0.00024058187581593312,
-    slope: ScalarFloat = 10.01,
-    intercept: ScalarFloat = 2.31,
+    conversion_factor: ScalarFloat = 0.00021379531796626502,
+    slope: ScalarFloat = 11.300198969875929,
+    intercept: ScalarFloat = 2.3084355749119707,
 ) -> Float[jax.Array, ""]:
     resource_of_humankind = get_resource_of_humankind(state)
     return conversion_factor * (slope * resource_of_humankind + intercept)
