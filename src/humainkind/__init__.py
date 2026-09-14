@@ -361,8 +361,6 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
-    resource_perturbation: ScalarFloat = 1e-3,
-    share_of_humankind_perturbation: ScalarFloat = 1e-6,
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
@@ -378,8 +376,6 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
-    resource_perturbation: ScalarFloat = 1e-3,
-    share_of_humankind_perturbation: ScalarFloat = 1e-6,
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
@@ -395,8 +391,6 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
-    resource_perturbation: ScalarFloat = 1e-3,
-    share_of_humankind_perturbation: ScalarFloat = 1e-6,
     efficacy_of_humankind_params: dict | None = None,
     efficacy_of_ai_params: dict | None = None,
     learning_curve_params: dict | None = None,
@@ -414,6 +408,11 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 
     resource = get_resource(state)
     share_of_humankind = get_share_of_humankind(state)
+
+    resource_perturbation = resource * 1e-6
+    share_of_humankind_perturbation = jnp.max(
+        jnp.array([share_of_humankind * 1e-6, 1e-9])
+    )  # Prevent perturbation becoming zero when `share_of_humankind` is zero.
 
     resource_upwards_perturbation = resource_perturbation
     resource_downwards_perturbation = jnp.min(
