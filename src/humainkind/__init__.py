@@ -933,45 +933,51 @@ def solve_farsighted_dynamics(
     return solution
 
 
-def get_times(solution: diffrax.Solution) -> Float[jax.Array, ""]:
+def get_times(solution: diffrax.Solution) -> Float[jax.Array, " times"]:
     assert solution.ts is not None
-    return solution.ts[jnp.isfinite(solution.ts)]
+
+    mask = jnp.isfinite(solution.ts)
+    valid_times = solution.ts[mask]
+    return valid_times
+
+
+def get_states(solution: diffrax.Solution) -> Float[jax.Array, " times 2"]:
+    assert solution.ts is not None
+    assert solution.ys is not None
+
+    mask = jnp.isfinite(solution.ts)
+    valid_states = solution.ys[mask]
+    return valid_states
 
 
 def map_states(
     solution: diffrax.Solution,
     mapping: Callable[[Float[jax.Array, " 2"]], Shaped[jax.Array, " *dim"]],
 ) -> Shaped[jax.Array, " times *dim"]:
+    valid_states = get_states(solution)
+    mapped_states = jax.vmap(mapping)(valid_states)
+    return mapped_states
+
+
+def get_times_and_states(
+    solution: diffrax.Solution,
+) -> tuple[Float[jax.Array, " times"], Float[jax.Array, " times 2"]]:
     assert solution.ts is not None
     assert solution.ys is not None
 
     mask = jnp.isfinite(solution.ts)
+    valid_times = solution.ts[mask]
     valid_states = solution.ys[mask]
-
-    return jax.vmap(mapping)(valid_states)
+    return (valid_times, valid_states)
 
 
 def get_times_and_mapped_states(
     solution: diffrax.Solution,
     mapping: Callable[[Float[jax.Array, " 2"]], Shaped[jax.Array, " *dim"]],
-    *,
-    unmasked: bool = False,
 ) -> tuple[Float[jax.Array, " times"], Shaped[jax.Array, " times *dim"]]:
-    assert solution.ts is not None
-    assert solution.ys is not None
-
-    if unmasked:
-        times = solution.ts
-        states = solution.ys
-    else:
-        mask = jnp.isfinite(solution.ts)
-        times = solution.ts[mask]
-        states = solution.ys[mask]
-
-    vectorized_mapping = jax.vmap(mapping)
-    mapped_states = vectorized_mapping(states)
-
-    return (times, mapped_states)
+    valid_times, valid_states = get_times_and_states(solution)
+    mapped_states = jax.vmap(mapping)(valid_states)
+    return (valid_times, mapped_states)
 
 
 def normalized(vector: Float[jax.Array, " dims"]) -> Float[jax.Array, " dims"]:
