@@ -92,7 +92,8 @@ def grad_get_resource_of_humankind(
     derivative_wrt_share_of_humankind = jnp.where(
         account_for_edge_behavior and share_of_humankind == 1.0, 0.0, resource
     )
-    # If flag is set, prevent increase of share of humankind beyond one.
+    # If flag is set, prevent increase of share of humankind
+    # beyond one by clipping the gradient.
 
     return jnp.array([derivative_wrt_resource, derivative_wrt_share_of_humankind])
 
@@ -105,6 +106,10 @@ def grad_get_resource_of_ai(
 
     derivative_wrt_resource = share_of_ai
     derivative_wrt_share_of_humankind = -resource
+    # We have to prevent the decrease of share of humankind below zero differently. This
+    # is because the dynamics at share of humankind equal to zero are more complicated
+    # than the dynamics at share of humankind equal to one, as AI's efficacy falls to
+    # zero in the latter case but humankind's efficacy does not in the former case.
 
     return jnp.array([derivative_wrt_resource, derivative_wrt_share_of_humankind])
 
