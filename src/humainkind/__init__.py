@@ -15,7 +15,6 @@ INITIAL_RESOURCE = 8.098431980182847
 INITIAL_SHARE_OF_HUMANKIND = 0.9969959732271604
 REDISTRIBUTION_COST_OF_HUMANKIND = 70.0
 REDISTRIBUTION_COST_OF_AI = 500.0
-PLANNING_HORIZON = 36  # months, that is, three years
 
 EFFICACY_OF_HUMANKIND_CONVERSION_FACTOR = 0.00021379531796626502
 EFFICACY_OF_HUMANKIND_SLOPE = 11.300198969875929
@@ -364,8 +363,8 @@ _sentinel = object()
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
+    planning_horizon: ScalarFloat,
     account_for_edge_behavior: bool,
-    planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
@@ -380,7 +379,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
-    planning_horizon: ScalarFloat = PLANNING_HORIZON,
+    planning_horizon: ScalarFloat,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
@@ -394,8 +393,8 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 def predict_gradients_of_resources_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
+    planning_horizon: ScalarFloat,
     account_for_edge_behavior: bool | object = _sentinel,
-    planning_horizon: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
@@ -693,9 +692,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
 def get_farsighted_dynamics_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
+    planning_horizon_of_humankind: ScalarFloat,
+    planning_horizon_of_ai: ScalarFloat,
     account_for_edge_behavior: bool,
-    planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
-    planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
@@ -709,8 +708,8 @@ def get_farsighted_dynamics_of_humankind_and_ai(
         (grad_predicted_resource_of_humankind, grad_predicted_resource_of_ai),
     ) = predict_gradients_of_resources_of_humankind_and_ai(
         state,
-        account_for_edge_behavior=account_for_edge_behavior,
         planning_horizon=planning_horizon_of_humankind,
+        account_for_edge_behavior=account_for_edge_behavior,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
@@ -725,8 +724,8 @@ def get_farsighted_dynamics_of_humankind_and_ai(
             (_, grad_predicted_resource_of_ai),
         ) = predict_gradients_of_resources_of_humankind_and_ai(
             state,
-            account_for_edge_behavior=account_for_edge_behavior,
             planning_horizon=planning_horizon_of_ai,
+            account_for_edge_behavior=account_for_edge_behavior,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
             efficacy_of_humankind_params=efficacy_of_humankind_params,
@@ -814,9 +813,9 @@ def get_farsighted_dynamics_of_humankind_and_ai(
 def get_farsighted_dynamics(
     state: Float[jax.Array, " 2"],
     *,
+    planning_horizon_of_humankind: ScalarFloat,
+    planning_horizon_of_ai: ScalarFloat,
     account_for_edge_behavior: bool,
-    planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
-    planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
@@ -828,9 +827,9 @@ def get_farsighted_dynamics(
     farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai = (
         get_farsighted_dynamics_of_humankind_and_ai(
             state,
-            account_for_edge_behavior=account_for_edge_behavior,
             planning_horizon_of_humankind=planning_horizon_of_humankind,
             planning_horizon_of_ai=planning_horizon_of_ai,
+            account_for_edge_behavior=account_for_edge_behavior,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
             efficacy_of_humankind_params=efficacy_of_humankind_params,
@@ -848,9 +847,9 @@ def solve_farsighted_dynamics(
     initial_state: Float[jax.Array, " 2"],
     target_duration: ScalarFloat,
     *,
+    planning_horizon_of_humankind: ScalarFloat,
+    planning_horizon_of_ai: ScalarFloat,
     account_for_edge_behavior: bool,
-    planning_horizon_of_humankind: ScalarFloat = PLANNING_HORIZON,
-    planning_horizon_of_ai: ScalarFloat = PLANNING_HORIZON,
     redistribution_cost_of_humankind: ScalarFloat = REDISTRIBUTION_COST_OF_HUMANKIND,
     redistribution_cost_of_ai: ScalarFloat = REDISTRIBUTION_COST_OF_AI,
     efficacy_of_humankind_params: dict | None = None,
@@ -880,9 +879,9 @@ def solve_farsighted_dynamics(
         terms=diffrax.ODETerm(
             lambda t, y, args: get_farsighted_dynamics(
                 y,
-                account_for_edge_behavior=account_for_edge_behavior,
                 planning_horizon_of_humankind=planning_horizon_of_humankind,
                 planning_horizon_of_ai=planning_horizon_of_ai,
+                account_for_edge_behavior=account_for_edge_behavior,
                 redistribution_cost_of_humankind=redistribution_cost_of_humankind,
                 redistribution_cost_of_ai=redistribution_cost_of_ai,
                 efficacy_of_humankind_params=efficacy_of_humankind_params,
