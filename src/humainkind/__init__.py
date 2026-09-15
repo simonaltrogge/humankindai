@@ -6,7 +6,7 @@ import equinox
 import jax
 import jax.numpy as jnp
 import optimistix
-from jaxtyping import Float, Shaped
+from jaxtyping import Float, Int, Shaped
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_debug_nans", True)
@@ -373,6 +373,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     early_return_prediction_time_only: Literal[False] = False,
     rtol: float = RELATIVE_TOLERANCE,
     atol: float = ABSOLUTE_TOLERANCE,
+    performance_over_memory: bool = False,
     **diffeqsolve_kwargs,
 ) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]]: ...
 @overload
@@ -388,6 +389,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     early_return_prediction_time_only: Literal[True],
     rtol: float = RELATIVE_TOLERANCE,
     atol: float = ABSOLUTE_TOLERANCE,
+    performance_over_memory: bool = False,
     **diffeqsolve_kwargs,
 ) -> Float[jax.Array, ""]: ...
 def predict_gradients_of_resources_of_humankind_and_ai(
@@ -403,6 +405,7 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     early_return_prediction_time_only: bool = False,
     rtol: float = RELATIVE_TOLERANCE,
     atol: float = ABSOLUTE_TOLERANCE,
+    performance_over_memory: bool = False,
     **diffeqsolve_kwargs,
 ) -> tuple[Float[jax.Array, ""], Float[jax.Array, "2 2"]] | Float[jax.Array, ""]:
     assert (
@@ -445,6 +448,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         rtol=rtol,
         atol=atol,
         account_for_edge_behavior=False,
+        saveat=diffrax.SaveAt(
+            t0=(not performance_over_memory), t1=True, steps=performance_over_memory
+        ),
         **diffeqsolve_kwargs,
     )
     downwards_perturbed_resource_solution = solve_greedy_dynamics(
@@ -461,6 +467,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         rtol=rtol,
         atol=atol,
         account_for_edge_behavior=False,
+        saveat=diffrax.SaveAt(
+            t0=(not performance_over_memory), t1=True, steps=performance_over_memory
+        ),
         **diffeqsolve_kwargs,
     )
 
@@ -488,6 +497,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         rtol=rtol,
         atol=atol,
         account_for_edge_behavior=False,
+        saveat=diffrax.SaveAt(
+            t0=(not performance_over_memory), t1=True, steps=performance_over_memory
+        ),
         **diffeqsolve_kwargs,
     )
     downwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
@@ -506,20 +518,19 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         rtol=rtol,
         atol=atol,
         account_for_edge_behavior=False,
+        saveat=diffrax.SaveAt(
+            t0=(not performance_over_memory), t1=True, steps=performance_over_memory
+        ),
         **diffeqsolve_kwargs,
     )
 
-    assert upwards_perturbed_resource_solution.ts is not None
-    assert downwards_perturbed_resource_solution.ts is not None
-    assert upwards_perturbed_share_of_humankind_solution.ts is not None
-    assert downwards_perturbed_share_of_humankind_solution.ts is not None
     prediction_time = jnp.min(
         jnp.array(
             [
-                upwards_perturbed_resource_solution.ts[0],
-                downwards_perturbed_resource_solution.ts[0],
-                upwards_perturbed_share_of_humankind_solution.ts[0],
-                downwards_perturbed_share_of_humankind_solution.ts[0],
+                _get_last_valid_time(upwards_perturbed_resource_solution),
+                _get_last_valid_time(downwards_perturbed_resource_solution),
+                _get_last_valid_time(upwards_perturbed_share_of_humankind_solution),
+                _get_last_valid_time(downwards_perturbed_share_of_humankind_solution),
             ]
         )
     )
@@ -530,12 +541,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     assert isinstance(account_for_edge_behavior, bool)
 
     # Recalculate solutions at prediction time
-    recalculated_upwards_perturbed_resource_solution = solve_greedy_dynamics(
-        initial_state=create_state(
-            resource=resource + resource_upwards_perturbation,
-            share_of_humankind=share_of_humankind,
-        ),
-        target_duration=prediction_time,
+    upwards_perturbed_resource_predicted_state = _recalculate_state_at_prediction_time(
+        upwards_perturbed_resource_solution,
+        prediction_time,
         redistribution_cost_of_humankind=redistribution_cost_of_humankind,
         redistribution_cost_of_ai=redistribution_cost_of_ai,
         efficacy_of_humankind_params=efficacy_of_humankind_params,
@@ -543,55 +551,12 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         learning_curve_params=learning_curve_params,
         rtol=rtol,
         atol=atol,
-        event=None,
-        account_for_edge_behavior=True,
         **diffeqsolve_kwargs,
     )
-    recalculated_downwards_perturbed_resource_solution = solve_greedy_dynamics(
-        initial_state=create_state(
-            resource=resource - resource_downwards_perturbation,
-            share_of_humankind=share_of_humankind,
-        ),
-        target_duration=prediction_time,
-        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
-        redistribution_cost_of_ai=redistribution_cost_of_ai,
-        efficacy_of_humankind_params=efficacy_of_humankind_params,
-        efficacy_of_ai_params=efficacy_of_ai_params,
-        learning_curve_params=learning_curve_params,
-        rtol=rtol,
-        atol=atol,
-        event=None,
-        account_for_edge_behavior=True,
-        **diffeqsolve_kwargs,
-    )
-    recalculated_upwards_perturbed_share_of_humankind_solution = solve_greedy_dynamics(
-        initial_state=create_state(
-            resource=resource,
-            share_of_humankind=(
-                share_of_humankind + share_of_humankind_upwards_perturbation
-            ),
-        ),
-        target_duration=prediction_time,
-        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
-        redistribution_cost_of_ai=redistribution_cost_of_ai,
-        efficacy_of_humankind_params=efficacy_of_humankind_params,
-        efficacy_of_ai_params=efficacy_of_ai_params,
-        learning_curve_params=learning_curve_params,
-        rtol=rtol,
-        atol=atol,
-        event=None,
-        account_for_edge_behavior=True,
-        **diffeqsolve_kwargs,
-    )
-    recalculated_downwards_perturbed_share_of_humankind_solution = (
-        solve_greedy_dynamics(
-            initial_state=create_state(
-                resource=resource,
-                share_of_humankind=(
-                    share_of_humankind - share_of_humankind_downwards_perturbation
-                ),
-            ),
-            target_duration=prediction_time,
+    downwards_perturbed_resource_predicted_state = (
+        _recalculate_state_at_prediction_time(
+            downwards_perturbed_resource_solution,
+            prediction_time,
             redistribution_cost_of_humankind=redistribution_cost_of_humankind,
             redistribution_cost_of_ai=redistribution_cost_of_ai,
             efficacy_of_humankind_params=efficacy_of_humankind_params,
@@ -599,27 +564,36 @@ def predict_gradients_of_resources_of_humankind_and_ai(
             learning_curve_params=learning_curve_params,
             rtol=rtol,
             atol=atol,
-            event=None,
-            account_for_edge_behavior=True,
             **diffeqsolve_kwargs,
         )
     )
-
-    assert recalculated_upwards_perturbed_resource_solution.ys is not None
-    assert recalculated_downwards_perturbed_resource_solution.ys is not None
-    assert recalculated_upwards_perturbed_share_of_humankind_solution.ys is not None
-    assert recalculated_downwards_perturbed_share_of_humankind_solution.ys is not None
-    upwards_perturbed_resource_predicted_state = (
-        recalculated_upwards_perturbed_resource_solution.ys[0]
-    )
-    downwards_perturbed_resource_predicted_state = (
-        recalculated_downwards_perturbed_resource_solution.ys[0]
-    )
     upwards_perturbed_share_of_humankind_predicted_state = (
-        recalculated_upwards_perturbed_share_of_humankind_solution.ys[0]
+        _recalculate_state_at_prediction_time(
+            upwards_perturbed_share_of_humankind_solution,
+            prediction_time,
+            redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+            redistribution_cost_of_ai=redistribution_cost_of_ai,
+            efficacy_of_humankind_params=efficacy_of_humankind_params,
+            efficacy_of_ai_params=efficacy_of_ai_params,
+            learning_curve_params=learning_curve_params,
+            rtol=rtol,
+            atol=atol,
+            **diffeqsolve_kwargs,
+        )
     )
     downwards_perturbed_share_of_humankind_predicted_state = (
-        recalculated_downwards_perturbed_share_of_humankind_solution.ys[0]
+        _recalculate_state_at_prediction_time(
+            downwards_perturbed_share_of_humankind_solution,
+            prediction_time,
+            redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+            redistribution_cost_of_ai=redistribution_cost_of_ai,
+            efficacy_of_humankind_params=efficacy_of_humankind_params,
+            efficacy_of_ai_params=efficacy_of_ai_params,
+            learning_curve_params=learning_curve_params,
+            rtol=rtol,
+            atol=atol,
+            **diffeqsolve_kwargs,
+        )
     )
 
     predicted_derivative_of_resource_of_humankind_wrt_resource = (
@@ -689,6 +663,58 @@ def predict_gradients_of_resources_of_humankind_and_ai(
     )
 
 
+def _get_last_valid_time(solution: diffrax.Solution) -> Float[jax.Array, ""]:
+    assert solution.ts is not None
+    return jnp.max(jnp.where(jnp.isfinite(solution.ts), solution.ts, -jnp.inf))
+
+
+def _recalculate_state_at_prediction_time(
+    solution: diffrax.Solution,
+    prediction_time: Float[jax.Array, ""],
+    *,
+    redistribution_cost_of_humankind: ScalarFloat,
+    redistribution_cost_of_ai: ScalarFloat,
+    efficacy_of_humankind_params: dict | None,
+    efficacy_of_ai_params: dict | None,
+    learning_curve_params: dict | None,
+    rtol: float,
+    atol: float,
+    **diffeqsolve_kwargs,
+) -> Float[jax.Array, " 2"]:
+    assert solution.ts is not None
+    assert solution.ys is not None
+    index_of_last_time_before_or_at = _last_nonzero(solution.ts <= prediction_time)
+    last_time_before_or_at = solution.ts[index_of_last_time_before_or_at]
+    last_state_before_or_at = solution.ys[index_of_last_time_before_or_at]
+
+    recalculated_solution = solve_greedy_dynamics(
+        initial_state=last_state_before_or_at,
+        target_duration=(prediction_time - last_time_before_or_at),
+        redistribution_cost_of_humankind=redistribution_cost_of_humankind,
+        redistribution_cost_of_ai=redistribution_cost_of_ai,
+        efficacy_of_humankind_params=efficacy_of_humankind_params,
+        efficacy_of_ai_params=efficacy_of_ai_params,
+        learning_curve_params=learning_curve_params,
+        rtol=rtol,
+        atol=atol,
+        event=None,
+        account_for_edge_behavior=True,
+        **diffeqsolve_kwargs,
+    )
+    assert recalculated_solution.ys is not None
+    return recalculated_solution.ys[-1]
+
+
+def _last_nonzero(array: Shaped[jax.Array, "*dims"]) -> tuple[Int[jax.Array, ""], ...]:
+    mask = array != 0
+    flat_mask_view = jnp.ravel(mask)
+    flat_index = jnp.max(
+        jnp.where(flat_mask_view, jnp.arange(jnp.size(flat_mask_view)), -1)
+    )
+    index = jnp.unravel_index(flat_index, jnp.shape(array))
+    return index
+
+
 def get_farsighted_dynamics_of_humankind_and_ai(
     state: Float[jax.Array, " 2"],
     *,
@@ -702,6 +728,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
     learning_curve_params: dict | None = None,
     rtol: float = RELATIVE_TOLERANCE,
     atol: float = ABSOLUTE_TOLERANCE,
+    performance_over_memory: bool = False,
 ) -> Float[jax.Array, "2 2"]:
     (
         _,
@@ -717,6 +744,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
         learning_curve_params=learning_curve_params,
         rtol=rtol,
         atol=atol,
+        performance_over_memory=performance_over_memory,
     )
     if planning_horizon_of_ai != planning_horizon_of_humankind:
         (
@@ -733,6 +761,7 @@ def get_farsighted_dynamics_of_humankind_and_ai(
             learning_curve_params=learning_curve_params,
             rtol=rtol,
             atol=atol,
+            performance_over_memory=performance_over_memory,
         )
 
     production_cost = get_production_cost(state, **(learning_curve_params or {}))
@@ -823,6 +852,7 @@ def get_farsighted_dynamics(
     learning_curve_params: dict | None = None,
     rtol: float = RELATIVE_TOLERANCE,
     atol: float = ABSOLUTE_TOLERANCE,
+    performance_over_memory: bool = False,
 ) -> Float[jax.Array, " 2"]:
     farsighted_dynamics_of_humankind, farsighted_dynamics_of_ai = (
         get_farsighted_dynamics_of_humankind_and_ai(
@@ -837,6 +867,7 @@ def get_farsighted_dynamics(
             learning_curve_params=learning_curve_params,
             rtol=rtol,
             atol=atol,
+            performance_over_memory=performance_over_memory,
         )
     )
     return farsighted_dynamics_of_humankind + farsighted_dynamics_of_ai
@@ -858,6 +889,7 @@ def solve_farsighted_dynamics(
     rtol: float = RELATIVE_TOLERANCE,
     atol: float = ABSOLUTE_TOLERANCE,
     dtmax: float | None = None,
+    performance_over_memory: bool = False,
     **diffeqsolve_kwargs,
 ) -> diffrax.Solution:
     default_diffeqsolve_kwargs = {
@@ -889,6 +921,7 @@ def solve_farsighted_dynamics(
                 learning_curve_params=learning_curve_params,
                 rtol=rtol,
                 atol=atol,
+                performance_over_memory=performance_over_memory,
             )
         ),
         t0=0.0,
