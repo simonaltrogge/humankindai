@@ -423,9 +423,9 @@ def predict_gradients_of_resources_of_humankind_and_ai(
         (share_of_humankind == 0.0) | (share_of_ai == 0.0), 0.0, planning_horizon
     )
 
-    resource_perturbation = resource * 1e-6
+    resource_perturbation = resource * 1e-8
     share_of_humankind_perturbation = jnp.max(
-        jnp.array([share_of_humankind * 1e-6, 1e-9])
+        jnp.array([share_of_humankind * 1e-8, 1e-9])
     )  # Prevent perturbation becoming zero when `share_of_humankind` is zero.
 
     resource_upwards_perturbation = resource_perturbation
