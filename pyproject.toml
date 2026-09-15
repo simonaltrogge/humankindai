@@ -1,5 +1,5 @@
 [project]
-name = "humainkind"
+name = "humankindai"
 version = "0.1.0"
 description = "Dynamical systems modeling of the interaction between humankind and artificial intelligence (AI)."
 readme = "README.md"
