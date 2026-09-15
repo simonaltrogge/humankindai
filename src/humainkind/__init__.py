@@ -16,8 +16,15 @@ INITIAL_SHARE_OF_HUMANKIND = 0.9969959732271604
 REDISTRIBUTION_COST_OF_HUMANKIND = 70.0
 REDISTRIBUTION_COST_OF_AI = 500.0
 PLANNING_HORIZON = 36  # months, that is, three years
+
+EFFICACY_OF_HUMANKIND_CONVERSION_FACTOR = 0.00021379531796626502
+EFFICACY_OF_HUMANKIND_SLOPE = 11.300198969875929
+EFFICACY_OF_HUMANKIND_INTERCEPT = 2.3084355749119707
+
 EFFICACY_OF_AI_FACTOR = 0.5099485090045803
 EFFICACY_OF_AI_EXPONENT = 1.2
+
+LEARNING_RATE = 0.25
 
 RELATIVE_TOLERANCE = 1e-10
 ABSOLUTE_TOLERANCE = 1e-10
@@ -106,9 +113,9 @@ def grad_get_resource_of_ai(
 def get_efficacy_of_humankind(
     state: Float[jax.Array, " 2"],
     *,
-    conversion_factor: ScalarFloat = 0.00021379531796626502,
-    slope: ScalarFloat = 11.300198969875929,
-    intercept: ScalarFloat = 2.3084355749119707,
+    conversion_factor: ScalarFloat = EFFICACY_OF_HUMANKIND_CONVERSION_FACTOR,
+    slope: ScalarFloat = EFFICACY_OF_HUMANKIND_SLOPE,
+    intercept: ScalarFloat = EFFICACY_OF_HUMANKIND_INTERCEPT,
 ) -> Float[jax.Array, ""]:
     resource_of_humankind = get_resource_of_humankind(state)
     return conversion_factor * (slope * resource_of_humankind + intercept)
@@ -129,7 +136,7 @@ def get_production_cost(
     *,
     initial_cost: ScalarFloat = 1.0,
     initial_resource: ScalarFloat = INITIAL_RESOURCE,
-    learning_rate: ScalarFloat = 0.25,
+    learning_rate: ScalarFloat = LEARNING_RATE,
 ) -> Float[jax.Array, ""]:
     """Learning curve."""
     resource = get_resource(state)
