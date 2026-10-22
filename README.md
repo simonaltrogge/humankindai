@@ -17,7 +17,7 @@ This project is managed with [uv](https://docs.astral.sh/uv/) and uses
     git clone https://github.com/simonaltrogge/humankindai.git
     ```
 
- 3. Enter the directory and create the project's virtual python
+ 3. Enter the directory and create the project's virtual Python
     environment.
     ```bash
     cd humankindai
