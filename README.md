@@ -63,14 +63,13 @@ docs](https://docs.astral.sh/uv/guides/projects/), respectively. You can also us
 If you use this code in your research, please cite our preprint
 
 ```bibtex
-@unpublished{memmesheimer2026basic
-    handle: 20.500.11811/14518,
-    doi: https://doi.org/10.48565/bonndoc-982,
-    author = {{Raoul-Martin Memmesheimer} and {Simon Altrogge}},
-    title = {A basic computational model of humankind's marginalization by AI},
-    publisher = {Universitäts- und Landesbibliothek Bonn},
-    year = 2026,
+@misc{memmesheimer2026marginalization,
+    author = {Memmesheimer, Raoul-Martin and Altrogge, Simon},
+    title = {A basic computational model of humankind's marginalization by {AI}},
+    year = {2026},
     month = sep,
+    howpublished = {Preprint, Universit{\"a}ts- und Landesbibliothek Bonn},
+    doi = {10.48565/bonndoc-982},
     url = {https://hdl.handle.net/20.500.11811/14518}
 }
 ```
