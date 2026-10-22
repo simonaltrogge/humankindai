@@ -42,8 +42,8 @@ structure
 uv run python
 ```
 You can then import the package using
-```pycon
->>> import humankindai
+```python
+import humankindai
 ```
 
 ### Marimo notebooks
