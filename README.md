@@ -60,7 +60,7 @@ docs](https://docs.astral.sh/uv/guides/projects/), respectively. You can also us
 
 ## Citation 
 
-If you use this code in your research, please cite our preprint
+If you use this code in your research, please cite our preprint:
 
 ```bibtex
 @misc{memmesheimer2026marginalization,
