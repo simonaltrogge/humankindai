@@ -49,9 +49,9 @@ import humankindai
 ### Marimo notebooks
 
 This project includes marimo notebooks (an alternative to Jupyter
-notebooks) in its `scripts` folder. You can start up a marimo notebook, for example, `fig_greedy_dynamics.py`, by executing from within the project's main folder
+notebooks) in its `scripts` folder. You can start up a marimo notebook, for example, `fig_greedy_dynamics.py`, by executing from within the `scripts` folder
 ```bash
-uv run marimo edit ./scripts/fig_greedy_dynamics.py
+uv run marimo edit fig_greedy_dynamics.py
 ```
 
 More information on marimo and its integration with uv can be found in
